@@ -22,6 +22,17 @@ import subprocess
 import sys
 import tarfile
 
+BASE_DIRS = (
+    'base',
+    'build',
+    'testing',
+    'tools',
+    'third_party/icu',
+    'third_party/libxml',
+    'third_party/modp_b64',
+    'third_party/tcmalloc',
+    'third_party/zlib'
+)
 
 TEST_DATA_DIRS = (
     'chrome/common/extensions/docs',
@@ -98,6 +109,12 @@ class MyTarFile(tarfile.TarFile):
       # in a bzip2-compressed tarball.
       if 'ChangeLog' in name:
         return
+
+      # Directories not on the whitelist get the boot
+      for data_dir in BASE_DIRS:
+        dir_path = os.path.join(GetSourceDirectory(), data_dir)
+        if not name.startswith(dir_path):
+          return
 
       # Directories that contains only test data can be safely removed.
       for data_dir in TEST_DATA_DIRS:
