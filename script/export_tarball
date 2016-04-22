@@ -92,12 +92,14 @@ TESTDIRS = (
 def GetSourceDirectory():
   return os.path.realpath(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-
 # Workaround lack of the exclude parameter in add method in python-2.4.
 # TODO(phajdan.jr): remove the workaround when it's not needed on the bot.
 class MyTarFile(tarfile.TarFile):
   def set_remove_nonessential_files(self, remove):
     self.__remove_nonessential_files = remove
+
+  def set_root_dir(self, root_dir):
+    self.__root_dir = root_dir
 
   def add(self, name, arcname=None, recursive=True, exclude=None, filter=None):
     head, tail = os.path.split(name)
@@ -110,11 +112,19 @@ class MyTarFile(tarfile.TarFile):
       if 'ChangeLog' in name:
         return
 
-      # Directories not on the whitelist get the boot
-      for data_dir in BASE_DIRS:
-        dir_path = os.path.join(GetSourceDirectory(), data_dir)
-        if not name.startswith(dir_path):
-          return
+      suffix = name.replace(self.__root_dir, '').replace('\\', '/')
+
+      if suffix.startswith('/'):
+        suffix = suffix[1:]
+
+      found = False
+      for needle in BASE_DIRS:
+        if suffix.startswith(needle):
+          found = True
+          break
+
+      if not (found or suffix == 'third_party' or suffix == ''):
+        return
 
       # Directories that contains only test data can be safely removed.
       for data_dir in TEST_DATA_DIRS:
@@ -176,6 +186,7 @@ def main(argv):
         archive.add(os.path.join(GetSourceDirectory(), directory),
                     arcname=os.path.join(output_basename, directory))
     else:
+      archive.set_root_dir(GetSourceDirectory())
       archive.add(GetSourceDirectory(), arcname=output_basename)
   finally:
     archive.close()
